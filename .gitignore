@@ -188,6 +188,7 @@ pip-selfcheck.json
 ## Ignore data files
 data/*.zip
 data/*.csv
+data/*.pickle
 
 ## Ignore sandbox
 sandbox/
