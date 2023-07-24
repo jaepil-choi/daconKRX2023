@@ -186,9 +186,11 @@ pip-selfcheck.json
 *.vsix
 
 ## Ignore data files
+# Don't ignore submission files. Small size anyway. 
 data/*.zip
 data/*.csv
 data/*.pickle
+output/*.pickle
 
 ## Ignore sandbox
 sandbox/
