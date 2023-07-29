@@ -15,16 +15,39 @@ from sklearn.metrics import (
 
 import submission_config as subconfig
 
+## Params
 DACON_SID_CNT = 2000
+SIMOS_START = subconfig.SIMOS_START
+SIMOS_END = subconfig.SIMOS_END
 
+## Import data
 krx_df = pd.read_csv(subconfig.krx_df_PATH)
+adjclose_df = pd.read_pickle(subconfig.adjclose_df_PATH)
 return_df = pd.read_pickle(subconfig.return_df_PATH)
 
-def get_tradables(return_df, trading_date=subconfig.PORTFOLIO_DATE):
-    sid_list = return_df.columns
+def get_simos_data(return_df, adjclose_df):
+    holidays = return_df.isnull().all(axis=1)
+    tradingdays = ~holidays
 
-    notnull = return_df.loc[trading_date, :].notnull()
-    notzero = return_df.loc[trading_date, :] != 0
+    holidays = holidays.index[holidays]
+    tradingdays = tradingdays.index[tradingdays]
+
+    return_df = return_df.loc[tradingdays, :]
+    adjclose_df = adjclose_df.loc[tradingdays, :]
+
+    return_df = return_df.loc[SIMOS_START:SIMOS_END, :]
+    adjclose_df = adjclose_df.loc[SIMOS_START:SIMOS_END, :]
+
+    return return_df, adjclose_df
+
+simos_return_df, simos_adjclose_df = get_simos_data(return_df, adjclose_df) # simos period, only trading days
+
+## for filtering
+def get_tradables(adjclose_df, trading_date=subconfig.PORTFOLIO_DATE):
+    sid_list = adjclose_df.columns
+
+    notnull = adjclose_df.loc[trading_date, :].notnull()
+    notzero = adjclose_df.loc[trading_date, :] != 0
 
     return sid_list[notnull * notzero]
 
@@ -45,6 +68,11 @@ def is_daconsids(sid_list, daconsids):
     return np.array([True if sid in daconsids else False for sid in sid_list])
 
 class Submission:
+    holding_return_s = (simos_adjclose_df.loc[SIMOS_END, :] - simos_adjclose_df.loc[SIMOS_START, :]).divide(simos_adjclose_df.loc[SIMOS_START, :])  
+    holding_return_s = holding_return_s.fillna(0)
+
+    # simos_winners = 
+
     def __init__(self, alpha_series:pd.Series, alpha_name:str, top=200, bottom=200):
         self.alpha_series = alpha_series
         self.alpha_name = alpha_name
@@ -52,7 +80,7 @@ class Submission:
         self.bottom = bottom
 
         self.sid_list = self.alpha_series.index
-        self.tradables = get_tradables(return_df)
+        self.tradables = get_tradables(adjclose_df)
         self.daconsids = get_daconsids(krx_df)
     
         self.is_selectables = is_tradables(self.sid_list, self.tradables) * is_daconsids(self.sid_list, self.daconsids)
@@ -60,6 +88,15 @@ class Submission:
         self.alpha_winners = None
         self.alpha_losers = None
 
+        # for excess return
+        self.long_hpr = None
+        self.short_hpr = None
+        self.final_return = None
+
+        # for variance
+        self.long_returns = None
+        self.short_returns = None
+        
     def get_rank(self, export_path=None):
         selectables = self.alpha_series[self.is_selectables]
         top_s = selectables.nlargest(self.top)
@@ -91,7 +128,30 @@ class Submission:
             return submission_df
 
         return submission_df
+
+    def get_excess_return(self, risk_free_rate=0.035, days_of_trading=15):
+        self.long_hpr = Submission.holding_return_s[self.alpha_winners].sum()
+        self.short_hpr = Submission.holding_return_s[self.alpha_losers].sum()
+
+        self.final_return = (self.long_hpr - self.short_hpr) / 400
+
+        annualized_final_return = self.final_return * 250 / days_of_trading
+        excess_return = annualized_final_return - risk_free_rate
+
+        return excess_return
     
-    
+    def get_volatility(self, days_of_trading=15):
+        self.long_returns = simos_return_df.loc[:, self.alpha_winners].mean(axis=1)
+        self.short_returns = simos_return_df.loc[:, self.alpha_losers].mean(axis=1)
+
+        annualized_portfolio_returns = (self.long_returns - self.short_returns) / 2 * 250
+        annualized_mean_returns = annualized_portfolio_returns.mean()
+        
+        annualized_portfolio_volatility = np.sqrt((annualized_portfolio_returns - annualized_mean_returns).pow(2)[2:].sum() / (days_of_trading-2))
+
+        return annualized_portfolio_volatility
+
+    def get_Sharpe(self):
+        return self.get_excess_return() / self.get_volatility()
 
     
