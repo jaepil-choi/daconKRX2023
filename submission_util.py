@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+from pathlib import Path
+
 from sklearn.metrics import (
     confusion_matrix, 
     accuracy_score, 
@@ -40,6 +42,7 @@ def get_simos_data(return_df, adjclose_df):
 
     return return_df, adjclose_df
 
+# TODO: Confusing if global variables are not capitalized
 simos_return_df, simos_adjclose_df = get_simos_data(return_df, adjclose_df) # simos period, only trading days
 
 ## for filtering
@@ -72,7 +75,9 @@ class Submission:
     holding_return_s = holding_return_s.fillna(0)
 
     # simos_winners = 
+    # TODO: Add data science evaluation metrics
 
+    # TODO: Make not-instance-specific variables to class variables
     def __init__(self, alpha_series:pd.Series, alpha_name:str, top=200, bottom=200):
         self.alpha_series = alpha_series
         self.alpha_name = alpha_name
@@ -155,3 +160,64 @@ class Submission:
         return self.get_excess_return() / self.get_volatility()
 
     
+class Score:
+    holding_return_s = (simos_adjclose_df.loc[SIMOS_END, :] - simos_adjclose_df.loc[SIMOS_START, :]).divide(simos_adjclose_df.loc[SIMOS_START, :])  
+    holding_return_s = holding_return_s.fillna(0)
+
+    def __init__(self, submission_csv_filepath, alpha_name, top=200, bottom=200):
+        self.alpha_name = alpha_name
+        self.top = top
+        self.bottom = bottom
+
+        with open(submission_csv_filepath, 'r') as f:
+            submission_df = pd.read_csv(f, index_col=0)
+        
+        submission_df.index = [idx[1:] for idx in submission_df.index]
+        submission_df.index.name = 'sid'
+        submission_df.columns = ['rank']
+
+        self.alpha_series = submission_df['rank']
+        self.sid_list = self.alpha_series.index
+
+        # TODO: Add validations
+
+        self.submission_df = None
+        self.alpha_winners = self.alpha_series.nsmallest(self.top).index
+        self.alpha_losers = self.alpha_series.nlargest(self.bottom).index
+
+        # for excess return
+        self.long_hpr = None
+        self.short_hpr = None
+        self.final_return = None
+
+        # for variance
+        self.long_returns = None
+        self.short_returns = None
+    
+    def get_excess_return(self, risk_free_rate=0.035, days_of_trading=15):
+        self.long_hpr = Score.holding_return_s[self.alpha_winners].sum()
+        self.short_hpr = Score.holding_return_s[self.alpha_losers].sum()
+
+        self.final_return = (self.long_hpr - self.short_hpr) / 400
+
+        annualized_final_return = self.final_return * 250 / days_of_trading
+        excess_return = annualized_final_return - risk_free_rate
+
+        return excess_return
+
+    def get_volatility(self, days_of_trading=15):
+        self.long_returns = simos_return_df.loc[:, self.alpha_winners].mean(axis=1)
+        self.short_returns = simos_return_df.loc[:, self.alpha_losers].mean(axis=1)
+
+        annualized_portfolio_returns = (self.long_returns - self.short_returns) / 2 * 250
+        annualized_mean_returns = annualized_portfolio_returns.mean()
+        
+        annualized_portfolio_volatility = np.sqrt((annualized_portfolio_returns - annualized_mean_returns).pow(2)[2:].sum() / (days_of_trading-2))
+
+        return annualized_portfolio_volatility
+
+    def get_Sharpe(self):
+        sharpe = self.get_excess_return() / self.get_volatility()
+        print(f'Sharpe of {self.alpha_name}: {sharpe}')
+
+        return sharpe
