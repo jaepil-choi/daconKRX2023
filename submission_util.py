@@ -164,12 +164,12 @@ class Score:
     holding_return_s = (simos_adjclose_df.loc[SIMOS_END, :] - simos_adjclose_df.loc[SIMOS_START, :]).divide(simos_adjclose_df.loc[SIMOS_START, :])  
     holding_return_s = holding_return_s.fillna(0)
 
-    def __init__(self, submission_csv_filepath, alpha_name, top=200, bottom=200):
+    def __init__(self, submission_csv_filepath, alpha_name, top=200, bottom=200, encoding='utf-8'):
         self.alpha_name = alpha_name
         self.top = top
         self.bottom = bottom
 
-        with open(submission_csv_filepath, 'r') as f:
+        with open(submission_csv_filepath, 'r', encoding=encoding) as f:
             submission_df = pd.read_csv(f, index_col=0)
         
         submission_df.index = [idx[1:] for idx in submission_df.index]
