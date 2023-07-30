@@ -190,6 +190,8 @@ pip-selfcheck.json
 data/*.zip
 data/*.csv
 data/*.pickle
+data/*.pkl
+data/old/*.pickle
 output/*.pickle
 
 ## Ignore sandbox
