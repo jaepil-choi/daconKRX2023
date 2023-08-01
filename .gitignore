@@ -194,6 +194,8 @@ data/*.pkl
 data/old/*.pickle
 output/*.pickle
 
+previous_submissions/
+
 ## Ignore sandbox
 sandbox/
 sandbox.py

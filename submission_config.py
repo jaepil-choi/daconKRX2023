@@ -15,6 +15,7 @@ adjopen_df_PATH = DATA_PATH / 'adjOpen_20140101_20230730.pkl'
 volume_df_PATH = DATA_PATH / 'volume_df_20140101_20230730.pkl'
 dollarvolume_df_PATH = DATA_PATH / 'dollarvolume_df_20140101_20230730.pkl'
 marketcap_df_PATH = DATA_PATH / 'marketcap_df_20140101_20230730.pkl'
+close_df_PATH = DATA_PATH / 'close_20140101_20230730.pkl' # unadjusted close
 
 ## Param configs
 

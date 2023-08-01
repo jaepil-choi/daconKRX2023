@@ -25,6 +25,7 @@ SIMOS_END = subconfig.SIMOS_END
 ## Import data
 krx_df = pd.read_csv(subconfig.krx_df_PATH)
 adjclose_df = pd.read_pickle(subconfig.adjclose_df_PATH)
+# adjclose_df = pd.read_pickle(subconfig.close_df_PATH)
 return_df = pd.read_pickle(subconfig.return_df_PATH)
 
 def get_simos_data(return_df, adjclose_df):
@@ -181,7 +182,7 @@ class Score:
 
         # TODO: Add validations
 
-        self.submission_df = None
+        self.submission_df = submission_df
         self.alpha_winners = self.alpha_series.nsmallest(self.top).index
         self.alpha_losers = self.alpha_series.nlargest(self.bottom).index
 
